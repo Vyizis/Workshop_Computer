@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drum&amp;Sequence</title>
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --panel: #242424;
+      --line: #333;
+      --ink: #f5f5f0;
+      --muted: #888;
+      --accent: #ff6b35;
+      --accent-dim: #cc4a1a;
+      --step-off: #2e2e2e;
+      --step-on: #ff6b35;
+      --step-accent: #ffd166;
+      --playhead: #ffd166;
+      --seq-a: #4ecdc4;
+      --seq-b: #a78bfa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .device {
+      max-width: 780px;
+      margin: 0 auto;
+      background: var(--panel);
+      border: 3px solid #111;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .status { color: var(--muted); }
+    .status.ok { color: #6bcb77; }
+    .status.wait { color: var(--accent); }
+    .bpm-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    button, .btn {
+      background: var(--accent);
+      color: #111;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    button:active { background: var(--accent-dim); }
+    button.secondary { background: var(--step-off); color: var(--ink); }
+    button.playing { background: var(--playhead); }
+    label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 4px; }
+    .section-title {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      margin: 16px 0 8px;
+      text-transform: uppercase;
+    }
+    .grid-wrap { overflow-x: auto; }
+    .grid {
+      display: grid;
+      gap: 3px;
+      min-width: 640px;
+    }
+    .grid.drums {
+      grid-template-columns: 48px repeat(16, 1fr);
+    }
+    .grid.piano {
+      grid-template-columns: 36px repeat(16, 1fr);
+      gap: 2px;
+      min-width: 700px;
+      user-select: none;
+      touch-action: none;
+    }
+    .row-label {
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      padding-right: 4px;
+    }
+    .row-label.piano-key {
+      font-size: 9px;
+      height: 14px;
+      justify-content: flex-end;
+      padding-right: 6px;
+    }
+    .row-label.piano-key.sharp { color: #555; }
+    .step {
+      aspect-ratio: 1;
+      min-width: 28px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--step-off);
+      cursor: pointer;
+      transition: background 0.05s;
+    }
+    .grid.piano .step {
+      aspect-ratio: auto;
+      min-width: 0;
+      height: 14px;
+      border-radius: 2px;
+    }
+    .grid.piano .step.sharp-row { background: #222; }
+    .step.on { background: var(--step-on); }
+    .step.accent { background: var(--step-accent); box-shadow: inset 0 0 0 1px #fff3; }
+    .step.playhead { outline: 2px solid var(--playhead); outline-offset: -2px; }
+    .bpm-row input[type=number] {
+      width: 64px;
+      background: var(--step-off);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 8px;
+      font: inherit;
+    }
+    #saveStatus { font-size: 10px; color: var(--muted); }
+    .step.inactive { opacity: 0.28; }
+    .step.seq-a.on { background: var(--seq-a); }
+    .step.seq-b.on { background: var(--seq-b); }
+    .piano-toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .piano-toolbar button {
+      padding: 6px 10px;
+      font-size: 10px;
+    }
+    .piano-toolbar .range {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      min-width: 72px;
+    }
+    .hint {
+      margin-top: 16px;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    input[type=range] { width: 120px; accent-color: var(--accent); }
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tabs button { flex: 1; }
+    .tabs button.active { background: var(--playhead); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .sample-row {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 10px;
+    }
+    .sample-row span.loaded { color: #6bcb77; }
+    .sample-row span.empty { color: var(--muted); }
+    #sampleLog {
+      margin-top: 12px;
+      font-size: 10px;
+      color: var(--muted);
+      white-space: pre-wrap;
+      min-height: 48px;
+    }
+  </style>
+</head>
+<body>
+  <div class="device">
+    <header>
+      <span>Drum&amp;Sequence</span>
+      <span class="status wait" id="status">Searching for DrumAndSequence…</span>
+    </header>
+
+    <div class="tabs">
+      <button id="tabPattern" class="active">Pattern</button>
+      <button id="tabSamples" class="secondary">Samples</button>
+    </div>
+
+    <div id="panelPattern" class="panel active">
+    <div class="bpm-row">
+      <button id="playBtn">Play</button>
+      <button class="secondary" id="dumpBtn">Sync</button>
+      <button class="secondary" id="saveBtn">Save</button>
+      <span id="saveStatus"></span>
+      <label>BPM <input type="number" id="bpmInput" min="40" max="240" value="120"></label>
+      <label>Swing <input type="range" id="swingSlider" min="0" max="127" value="64"></label>
+      <span id="swingVal">64</span>
+      <label>Length <input type="range" id="lenSlider" min="1" max="16" value="16"></label>
+      <span id="lenVal">16</span>
+    </div>
+
+    <div class="section-title">Drums</div>
+    <div class="grid-wrap"><div class="grid drums" id="drumGrid"></div></div>
+
+    <div class="section-title">Seq A — CV Out 1 + Gate 1</div>
+    <div class="piano-toolbar">
+      <button type="button" class="secondary" id="seqAOctDown">− Oct</button>
+      <span class="range" id="seqARange">C3–B4</span>
+      <button type="button" class="secondary" id="seqAOctUp">+ Oct</button>
+    </div>
+    <div class="grid-wrap"><div class="grid piano" id="seqAGrid"></div></div>
+
+    <div class="section-title">Seq B — CV Out 2 + Gate 2</div>
+    <div class="piano-toolbar">
+      <button type="button" class="secondary" id="seqBOctDown">− Oct</button>
+      <span class="range" id="seqBRange">C2–B3</span>
+      <button type="button" class="secondary" id="seqBOctUp">+ Oct</button>
+    </div>
+    <div class="grid-wrap"><div class="grid piano" id="seqBGrid"></div></div>
+    </div>
+
+    <div id="panelSamples" class="panel">
+      <div class="bpm-row">
+        <button class="secondary" id="serialConnectBtn">Connect Serial</button>
+        <button id="uploadBtn" disabled>Upload Bank</button>
+      </div>
+      <div id="sampleRows"></div>
+      <div id="sampleLog">Web Serial: connect to see what's on the card. Choose a WAV for slots you want to add/change, then Upload — other slots stay as they are.</div>
+    </div>
+
+    <p class="hint">
+      Chrome / Edge · USB-C data cable · Close other MIDI/serial apps.<br>
+      <strong>Pattern</strong> tab: WebMIDI SysEx. <strong>Samples</strong> tab: Web Serial upload (48 kHz mono WAV).<br>
+      Drums: click cycles off → hit → accent. Piano roll: click/drag notes. Save writes pattern + BPM + swing to flash.
+    </p>
+  </div>
+
+<script>
+"use strict";
+
+// ── Pattern tab: WebMIDI SysEx (must match midi_sysex.h) ──────
+// Envelope: F0 7D <cmd> <payload...> F7
+const SYSEX_MFR = 0x7D;
+const CMD_SET_DRUM = 0x01;
+const CMD_SET_SEQ = 0x02;
+const CMD_SET_LEN = 0x03;
+const CMD_SET_PLAY = 0x04;
+const CMD_REQ_DUMP = 0x05;
+const CMD_IFACE_VER = 0x06;
+const CMD_SET_TEMPO = 0x07;
+const CMD_SET_SWING = 0x08;
+const CMD_SAVE = 0x20;
+const CMD_DUMP = 0x10;
+const CMD_TICK = 0x11;   // drumStep, seqAStep, seqBStep
+const CMD_PARAM = 0x12;  // mirrors a SET_* from the panel
+const CMD_SAVE_OK = 0x21;
+const CMD_SAVE_ERR = 0x22;
+const PRODUCT = "DrumAndSequence";
+
+const DRUM_NAMES = ["KICK","SNAR","HAT","OPEN","CLAP","TOM","RIM","FX"];
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const VEL_NORMAL = 100;
+const VEL_ACCENT = 127;
+
+const state = {
+  playing: true,
+  step: 0,
+  stepA: 0,
+  stepB: 0,
+  length: 16,
+  seqALen: 16,
+  seqBLen: 16,
+  swing: 64,
+  tempoBpm: 120,
+  drums: Array.from({length:8}, () => Array(16).fill(0)),
+  seqA: { on: Array(16).fill(0), note: Array(16).fill(60) },
+  seqB: { on: Array(16).fill(0), note: Array(16).fill(48) },
+};
+
+let midiOut = null, midiIn = null;
+
+function noteLabel(n) {
+  const oct = Math.floor(n/12)-1;
+  return NOTE_NAMES[n%12] + oct;
+}
+
+function sendSysex(payload) {
+  if (!midiOut) return;
+  const msg = [0xF0, SYSEX_MFR, ...payload, 0xF7];
+  midiOut.send(msg);
+}
+
+function updatePlayButton() {
+  const btn = document.getElementById("playBtn");
+  btn.textContent = state.playing ? "Pause" : "Play";
+  btn.classList.toggle("playing", !!state.playing);
+}
+
+function updateLengthUi() {
+  document.getElementById("lenSlider").value = state.length;
+  document.getElementById("lenVal").textContent = state.length;
+}
+
+function updateTempoUi() {
+  document.getElementById("bpmInput").value = state.tempoBpm;
+}
+
+function updateSwingUi() {
+  document.getElementById("swingSlider").value = state.swing;
+  document.getElementById("swingVal").textContent = state.swing;
+}
+
+function sendTempo(bpm) {
+  bpm = Math.max(40, Math.min(240, bpm | 0));
+  state.tempoBpm = bpm;
+  sendSysex([CMD_SET_TEMPO, (bpm >> 7) & 0x7F, bpm & 0x7F]);
+  updateTempoUi();
+}
+
+function sendSwing(swing) {
+  swing = Math.max(0, Math.min(127, swing | 0));
+  state.swing = swing;
+  sendSysex([CMD_SET_SWING, swing & 0x7F]);
+  updateSwingUi();
+}
+
+function applyDump(body) {
+  // cmd, playing, step, length, seqALen, seqBLen, stepA, stepB,
+  // swing, tempoHi, tempoLo, drums…, seq…
+  const need = 11 + 8 * 16 + 4 * 16;
+  if (body.length < need) {
+    console.warn("DrumAndSequence dump truncated", body.length, "expected", need);
+    return;
+  }
+  let i = 1;
+  state.playing = body[i++];
+  state.step = body[i++];
+  state.length = body[i++];
+  state.seqALen = body[i++];
+  state.seqBLen = body[i++];
+  state.stepA = body[i++];
+  state.stepB = body[i++];
+  state.swing = body[i++];
+  state.tempoBpm = ((body[i++] & 0x7F) << 7) | (body[i++] & 0x7F);
+  for (let t = 0; t < 8; t++) {
+    for (let s = 0; s < 16; s++) state.drums[t][s] = body[i++];
+  }
+  for (let s = 0; s < 16; s++) {
+    state.seqA.on[s] = body[i++];
+    state.seqA.note[s] = body[i++];
+    state.seqB.on[s] = body[i++];
+    state.seqB.note[s] = body[i++];
+  }
+  updatePlayButton();
+  updateLengthUi();
+  updateTempoUi();
+  updateSwingUi();
+  renderAll();
+}
+
+function applyParam(body) {
+  // body: PARAM_UPDATE, <set_cmd>, …
+  if (body.length < 2) return;
+  const setCmd = body[1];
+  if (setCmd === CMD_SET_PLAY && body.length >= 3) {
+    state.playing = body[2] ? 1 : 0;
+    updatePlayButton();
+    return;
+  }
+  if (setCmd === CMD_SET_LEN && body.length >= 4) {
+    const target = body[2];
+    const len = body[3];
+    if (target === 0) {
+      state.length = len;
+      updateLengthUi();
+      renderPlayheads();
+    } else if (target === 1) {
+      state.seqALen = len;
+      renderPlayheads();
+    } else if (target === 2) {
+      state.seqBLen = len;
+      renderPlayheads();
+    }
+    return;
+  }
+  if (setCmd === CMD_SET_TEMPO && body.length >= 4) {
+    state.tempoBpm = ((body[2] & 0x7F) << 7) | (body[3] & 0x7F);
+    updateTempoUi();
+    return;
+  }
+  if (setCmd === CMD_SET_SWING && body.length >= 3) {
+    state.swing = body[2] & 0x7F;
+    updateSwingUi();
+    return;
+  }
+  if (setCmd === CMD_SET_DRUM && body.length >= 5) {
+    const t = body[2], s = body[3], v = body[4];
+    if (t < 8 && s < 16) {
+      state.drums[t][s] = v;
+      renderDrums();
+    }
+    return;
+  }
+  if (setCmd === CMD_SET_SEQ && body.length >= 6) {
+    const seqIdx = body[2], s = body[3], on = body[4], note = body[5];
+    if (s < 16) {
+      const seq = seqIdx === 0 ? state.seqA : state.seqB;
+      seq.on[s] = on ? 1 : 0;
+      seq.note[s] = note;
+      renderPianoRoll(seqIdx);
+    }
+  }
+}
+
+function onMidi(ev) {
+  const d = ev.data;
+  if (d.length < 4 || d[0] !== 0xF0 || d[1] !== SYSEX_MFR) return;
+  const body = Array.from(d.slice(2, d.length - 1));
+  const cmd = body[0];
+  if (cmd === CMD_DUMP) applyDump(body);
+  if (cmd === CMD_PARAM) applyParam(body);
+  if (cmd === CMD_SAVE_OK) {
+    document.getElementById("saveStatus").textContent = "Saved";
+  }
+  if (cmd === CMD_SAVE_ERR) {
+    document.getElementById("saveStatus").textContent = "Save failed";
+  }
+  if (cmd === CMD_TICK && body.length >= 2) {
+    state.step = body[1];
+    state.stepA = body.length >= 3 ? body[2] : body[1];
+    state.stepB = body.length >= 4 ? body[3] : body[1];
+    renderPlayheads();
+  }
+}
+
+function bindMidi() {
+  if (!navigator.requestMIDIAccess) {
+    setStatus("WebMIDI not supported", false);
+    return;
+  }
+  navigator.requestMIDIAccess({ sysex: true }).then(access => {
+    const connect = () => {
+      midiIn = [...access.inputs.values()].find(p => p.name && p.name.includes(PRODUCT));
+      midiOut = [...access.outputs.values()].find(p => p.name && p.name.includes(PRODUCT));
+      if (midiIn && midiOut) {
+        midiIn.onmidimessage = onMidi;
+        setStatus("Connected · " + midiOut.name, true);
+        sendSysex([CMD_IFACE_VER, 0, 1, 0]);
+      } else {
+        setStatus("Searching for DrumAndSequence…", false);
+      }
+    };
+    access.onstatechange = connect;
+    connect();
+  }).catch(e => setStatus("MIDI denied: " + e.message, false));
+}
+
+function setStatus(text, ok) {
+  const el = document.getElementById("status");
+  el.textContent = text;
+  el.className = "status " + (ok ? "ok" : "wait");
+}
+
+function playheadForGrid(gridId) {
+  if (gridId === "seqAGrid") return state.stepA;
+  if (gridId === "seqBGrid") return state.stepB;
+  return state.step;
+}
+
+function activeLengthForGrid(gridId) {
+  if (gridId === "seqAGrid") return state.seqALen;
+  if (gridId === "seqBGrid") return state.seqBLen;
+  return state.length;
+}
+
+function renderPlayheads() {
+  document.querySelectorAll(".grid").forEach(grid => {
+    const ph = playheadForGrid(grid.id);
+    const activeLen = activeLengthForGrid(grid.id);
+    grid.querySelectorAll(".step").forEach(el => {
+      const s = parseInt(el.dataset.step, 10);
+      el.classList.toggle("playhead", s === ph);
+      el.classList.toggle("inactive", s >= activeLen);
+    });
+  });
+}
+
+function isSharp(note) {
+  return [1, 3, 6, 8, 10].includes(note % 12);
+}
+
+// Lowest MIDI note shown in each piano roll (24 rows / 2 octaves).
+const PIANO_ROWS = 24;
+const pianoBase = [48, 36]; // Seq A ≈ C3–B4, Seq B ≈ C2–B3
+
+// Drag-paint state for piano rolls.
+let pianoPaint = null; // { seqIdx, placing, note }
+
+function seqByIndex(seqIdx) {
+  return seqIdx === 0 ? state.seqA : state.seqB;
+}
+
+function updatePianoRangeLabel(seqIdx) {
+  const base = pianoBase[seqIdx];
+  const el = document.getElementById(seqIdx === 0 ? "seqARange" : "seqBRange");
+  if (el) el.textContent = `${noteLabel(base)}–${noteLabel(base + PIANO_ROWS - 1)}`;
+}
+
+function refreshPianoStep(seqIdx, step) {
+  const id = seqIdx === 0 ? "seqAGrid" : "seqBGrid";
+  const grid = document.getElementById(id);
+  const seq = seqByIndex(seqIdx);
+  grid.querySelectorAll(`.step[data-step="${step}"]`).forEach(cell => {
+    const note = parseInt(cell.dataset.note, 10);
+    cell.classList.toggle("on", !!(seq.on[step] && seq.note[step] === note));
+  });
+}
+
+function setSeqCell(seqIdx, step, note, placing) {
+  const seq = seqByIndex(seqIdx);
+  let changed = false;
+  if (placing) {
+    if (!(seq.on[step] && seq.note[step] === note)) {
+      seq.on[step] = 1;
+      seq.note[step] = note;
+      changed = true;
+    }
+  } else if (seq.on[step] && seq.note[step] === note) {
+    seq.on[step] = 0;
+    changed = true;
+  }
+  if (!changed) return;
+  sendSysex([CMD_SET_SEQ, seqIdx, step, seq.on[step], seq.note[step]]);
+  refreshPianoStep(seqIdx, step);
+}
+
+function renderPianoRoll(seqIdx) {
+  const id = seqIdx === 0 ? "seqAGrid" : "seqBGrid";
+  const grid = document.getElementById(id);
+  const seq = seqByIndex(seqIdx);
+  const cls = seqIdx === 0 ? "seq-a" : "seq-b";
+  const base = pianoBase[seqIdx];
+  const activeLen = activeLengthForGrid(id);
+  const ph = playheadForGrid(id);
+
+  grid.innerHTML = "";
+  updatePianoRangeLabel(seqIdx);
+
+  // High notes at the top (piano-roll convention).
+  for (let row = PIANO_ROWS - 1; row >= 0; row--) {
+    const note = base + row;
+    const sharp = isSharp(note);
+    const label = document.createElement("div");
+    label.className = "row-label piano-key" + (sharp ? " sharp" : "");
+    // Label natural notes; sharps stay quieter.
+    label.textContent = sharp ? "" : noteLabel(note);
+    grid.appendChild(label);
+
+    for (let s = 0; s < 16; s++) {
+      const on = seq.on[s] && seq.note[s] === note;
+      const cell = document.createElement("div");
+      cell.className = "step " + cls
+        + (sharp ? " sharp-row" : "")
+        + (on ? " on" : "")
+        + (s === ph ? " playhead" : "")
+        + (s >= activeLen ? " inactive" : "");
+      cell.dataset.step = s;
+      cell.dataset.note = note;
+
+      cell.onpointerdown = (e) => {
+        e.preventDefault();
+        cell.setPointerCapture(e.pointerId);
+        const placing = !(seq.on[s] && seq.note[s] === note);
+        pianoPaint = { seqIdx, placing, note };
+        setSeqCell(seqIdx, s, note, placing);
+      };
+      cell.onpointerenter = (e) => {
+        if (!pianoPaint || pianoPaint.seqIdx !== seqIdx) return;
+        if ((e.buttons & 1) === 0) return;
+        // Horizontal paint keeps the note from the drag start (classic roll).
+        setSeqCell(seqIdx, s, pianoPaint.note, pianoPaint.placing);
+      };
+      grid.appendChild(cell);
+    }
+  }
+}
+
+window.addEventListener("pointerup", () => { pianoPaint = null; });
+window.addEventListener("pointercancel", () => { pianoPaint = null; });
+
+function shiftPianoOctave(seqIdx, deltaOctaves) {
+  const next = pianoBase[seqIdx] + deltaOctaves * 12;
+  if (next < 12 || next + PIANO_ROWS - 1 > 108) return;
+  pianoBase[seqIdx] = next;
+  renderPianoRoll(seqIdx);
+}
+
+function renderDrums() {
+  const grid = document.getElementById("drumGrid");
+  grid.innerHTML = "";
+  for (let t = 0; t < 8; t++) {
+    const label = document.createElement("div");
+    label.className = "row-label";
+    label.textContent = DRUM_NAMES[t];
+    grid.appendChild(label);
+    for (let s = 0; s < 16; s++) {
+      const cell = document.createElement("div");
+      const vel = state.drums[t][s];
+      cell.className = "step" + (vel >= VEL_ACCENT ? " accent" : (vel ? " on" : ""));
+      cell.dataset.step = s;
+      cell.title = vel >= VEL_ACCENT ? "accent" : (vel ? "hit" : "off");
+      cell.onclick = () => {
+        // Cycle: off → normal → accent → off
+        let next = 0;
+        if (!vel) next = VEL_NORMAL;
+        else if (vel < VEL_ACCENT) next = VEL_ACCENT;
+        else next = 0;
+        state.drums[t][s] = next;
+        sendSysex([CMD_SET_DRUM, t, s, next]);
+        renderDrums();
+      };
+      grid.appendChild(cell);
+    }
+  }
+  renderPlayheads();
+}
+
+function renderAll() {
+  renderDrums();
+  renderPianoRoll(0);
+  renderPianoRoll(1);
+}
+
+document.getElementById("playBtn").onclick = () => {
+  state.playing = state.playing ? 0 : 1;
+  sendSysex([CMD_SET_PLAY, state.playing ? 1 : 0]);
+  updatePlayButton();
+};
+
+document.getElementById("dumpBtn").onclick = () => sendSysex([CMD_REQ_DUMP]);
+
+document.getElementById("saveBtn").onclick = () => {
+  document.getElementById("saveStatus").textContent = "Saving…";
+  sendSysex([CMD_SAVE]);
+};
+
+document.getElementById("bpmInput").onchange = (e) => {
+  sendTempo(parseInt(e.target.value, 10) || 120);
+};
+document.getElementById("bpmInput").onkeydown = (e) => {
+  if (e.key === "Enter") {
+    e.target.blur();
+    sendTempo(parseInt(e.target.value, 10) || 120);
+  }
+};
+
+document.getElementById("swingSlider").oninput = (e) => {
+  sendSwing(parseInt(e.target.value, 10));
+};
+
+document.getElementById("lenSlider").oninput = (e) => {
+  state.length = parseInt(e.target.value, 10);
+  document.getElementById("lenVal").textContent = state.length;
+  sendSysex([CMD_SET_LEN, 0, state.length]);
+  renderPlayheads();
+};
+
+document.getElementById("seqAOctDown").onclick = () => shiftPianoOctave(0, -1);
+document.getElementById("seqAOctUp").onclick = () => shiftPianoOctave(0, 1);
+document.getElementById("seqBOctDown").onclick = () => shiftPianoOctave(1, -1);
+document.getElementById("seqBOctUp").onclick = () => shiftPianoOctave(1, 1);
+
+renderAll();
+bindMidi();
+
+// ─── Tabs ───────────────────────────────────────────────
+document.getElementById("tabPattern").onclick = () => {
+  document.getElementById("tabPattern").classList.add("active");
+  document.getElementById("tabSamples").classList.remove("active");
+  document.getElementById("panelPattern").classList.add("active");
+  document.getElementById("panelSamples").classList.remove("active");
+};
+document.getElementById("tabSamples").onclick = () => {
+  document.getElementById("tabSamples").classList.add("active");
+  document.getElementById("tabPattern").classList.remove("active");
+  document.getElementById("panelSamples").classList.add("active");
+  document.getElementById("panelPattern").classList.remove("active");
+};
+
+// ─── Sample bank (CDC Web Serial — keep in sync with sample_bank.h) ─
+// Magic "DSbk", 4096-byte header, 8 fixed 60-byte records, then PCM.
+const DS_BANK_MAGIC = 0x6b625344;
+const DS_BANK_VERSION = 1;
+const DS_BANK_HEADER_SIZE = 4096;
+const DS_BANK_SAMPLE_RATE = 48000;
+const DS_BANK_RECORD_SIZE = 60;
+const USB_VID = 0x2e8a;
+const USB_PID = 0x10c3;
+// Must match DS_VOICE_CACHE_FRAMES in voice_cache.h (~250 ms at 48 kHz).
+const MAX_SAMPLE_FRAMES = 12000;
+
+const sampleSlots = DRUM_NAMES.map((name, i) => ({
+  name, pcm: null, peak: 0, cardFrames: 0, label: name, status: "empty",
+}));
+
+function logSample(msg) {
+  document.getElementById("sampleLog").textContent = msg;
+}
+
+function updateSampleStatus(i) {
+  const el = document.getElementById(`sampleStatus${i}`);
+  if (!el) return;
+  const slot = sampleSlots[i];
+  if (slot.pcm) {
+    el.className = "loaded";
+    el.textContent = `${slot.pcm.length} fr`;
+  } else if (slot.cardFrames > 0) {
+    el.className = "loaded";
+    el.textContent = `${slot.cardFrames} fr on card`;
+  } else {
+    el.className = "empty";
+    el.textContent = "empty";
+  }
+}
+
+function applySlotFrameCounts(frames) {
+  for (let i = 0; i < 8; i++) {
+    sampleSlots[i].cardFrames = frames[i] || 0;
+    if (!sampleSlots[i].pcm) updateSampleStatus(i);
+  }
+}
+
+function renderSampleRows() {
+  const root = document.getElementById("sampleRows");
+  root.innerHTML = "";
+  sampleSlots.forEach((slot, i) => {
+    const row = document.createElement("div");
+    row.className = "sample-row";
+    const status = document.createElement("span");
+    status.id = `sampleStatus${i}`;
+    status.className = slot.pcm || slot.cardFrames ? "loaded" : "empty";
+    status.textContent = slot.pcm
+      ? `${slot.pcm.length} fr`
+      : (slot.cardFrames ? `${slot.cardFrames} fr on card` : "empty");
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "audio/*,.wav";
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      status.className = "empty";
+      status.textContent = "encoding…";
+      try {
+        let pcm = await encodeFile(file, slot.name);
+        if (pcm.length > MAX_SAMPLE_FRAMES) {
+          pcm = pcm.slice(0, MAX_SAMPLE_FRAMES);
+          logSample(`${slot.name}: trimmed to ${MAX_SAMPLE_FRAMES} frames (~250 ms)`);
+        } else {
+          logSample(`${slot.name}: ${pcm.length} frames loaded`);
+        }
+        slot.pcm = pcm;
+        slot.peak = peakOf(pcm);
+        slot.cardFrames = pcm.length;
+        updateSampleStatus(i);
+      } catch (err) {
+        slot.pcm = null;
+        slot.peak = 0;
+        updateSampleStatus(i);
+        logSample(`${slot.name}: ${err.message || err}`);
+      } finally {
+        input.value = "";
+      }
+    };
+    row.innerHTML = `<strong>${slot.name}</strong>`;
+    row.appendChild(input);
+    row.appendChild(status);
+    root.appendChild(row);
+  });
+}
+
+function peakOf(pcm) {
+  let peak = 0;
+  for (let i = 0; i < pcm.length; i++) {
+    const v = (pcm[i] << 24) >> 24;
+    peak = Math.max(peak, Math.abs(v));
+  }
+  return peak;
+}
+
+async function encodeFile(file, defaultName) {
+  const ctx = new AudioContext();
+  let buffer;
+  try {
+    buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+  } finally {
+    await ctx.close();
+  }
+  if (!buffer || buffer.length === 0) {
+    throw new Error("empty or unreadable audio");
+  }
+  const mono = new Float32Array(buffer.length);
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const data = buffer.getChannelData(c);
+    for (let i = 0; i < data.length; i++) mono[i] += data[i] / buffer.numberOfChannels;
+  }
+  const monoBuf = new AudioBuffer({ length: mono.length, numberOfChannels: 1, sampleRate: buffer.sampleRate });
+  monoBuf.copyToChannel(mono, 0);
+  const outLen = Math.max(1, Math.floor((mono.length / buffer.sampleRate) * DS_BANK_SAMPLE_RATE));
+  const offline = new OfflineAudioContext(1, outLen, DS_BANK_SAMPLE_RATE);
+  const src = offline.createBufferSource();
+  const lp = offline.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 20000;
+  src.buffer = monoBuf;
+  src.connect(lp).connect(offline.destination);
+  src.start();
+  const rendered = await offline.startRendering();
+  const data = rendered.getChannelData(0);
+  let peakF = 0;
+  for (const v of data) peakF = Math.max(peakF, Math.abs(v));
+  const gain = peakF > 0 ? 0.891 / peakF : 1;
+  const pcm = new Uint8Array(data.length);
+  for (let i = 0; i < data.length; i++) {
+    const q = Math.max(-128, Math.min(127, Math.round(data[i] * gain * 127)));
+    pcm[i] = q & 0xff;
+  }
+  return pcm;
+}
+
+function buildBankBlob(capacityBytes) {
+  let audioBytes = 0;
+  const used = sampleSlots.map(s => s.pcm && s.pcm.length > 0 ? s.pcm : null);
+  used.forEach(pcm => { if (pcm) audioBytes += pcm.length; });
+  if (audioBytes > capacityBytes) throw new Error("Bank too large for card");
+  const blob = new Uint8Array(DS_BANK_HEADER_SIZE + audioBytes);
+  blob.fill(0xff);
+  const view = new DataView(blob.buffer);
+  view.setUint32(0, DS_BANK_MAGIC, true);
+  view.setUint32(4, DS_BANK_VERSION, true);
+  view.setUint32(8, DS_BANK_HEADER_SIZE, true);
+  view.setUint32(12, DS_BANK_SAMPLE_RATE, true);
+  view.setUint32(16, 8, true);
+  view.setUint32(20, audioBytes, true);
+  view.setUint32(24, capacityBytes, true);
+  view.setUint32(28, 0, true);
+  let offset = 0;
+  for (let index = 0; index < 8; index++) {
+    const pcm = used[index];
+    const rec = 32 + index * DS_BANK_RECORD_SIZE;
+    if (pcm) {
+      view.setUint32(rec, offset, true);
+      view.setUint32(rec + 4, pcm.length, true);
+      view.setUint16(rec + 8, 120, true);
+      view.setUint8(rec + 10, peakOf(pcm));
+      blob.set(pcm, DS_BANK_HEADER_SIZE + offset);
+      offset += pcm.length;
+    } else {
+      view.setUint32(rec, 0, true);
+      view.setUint32(rec + 4, 0, true);
+      view.setUint16(rec + 8, 120, true);
+      view.setUint8(rec + 10, 0);
+    }
+    view.setUint8(rec + 11, 0);
+    const enc = new TextEncoder().encode(DRUM_NAMES[index]);
+    blob.fill(0, rec + 12, rec + 12 + 48);
+    blob.set(enc.slice(0, 47), rec + 12);
+  }
+  return blob;
+}
+
+function clearSampleSlots() {
+  for (let i = 0; i < 8; i++) {
+    sampleSlots[i].pcm = null;
+    sampleSlots[i].peak = 0;
+    sampleSlots[i].cardFrames = 0;
+    updateSampleStatus(i);
+  }
+}
+
+let serialPort = null, serialWriter = null, serialReader = null, serialBuf = new Uint8Array(0);
+
+async function connectSerial() {
+  if (!navigator.serial) { logSample("Web Serial not supported"); return; }
+  serialPort = await navigator.serial.requestPort({
+    filters: [{ usbVendorId: USB_VID, usbProductId: USB_PID }],
+  });
+  await serialPort.open({ baudRate: 115200 });
+  serialReader = serialPort.readable.getReader();
+  serialWriter = serialPort.writable.getWriter();
+  readSerialLoop();
+  await new Promise(r => setTimeout(r, 250));
+  await serialWriteStr("X");
+  await waitForText("SYNC\n", 5000);
+  const info = await serialInfo();
+  document.getElementById("uploadBtn").disabled = false;
+
+  if (info.slotFrames) {
+    applySlotFrameCounts(info.slotFrames);
+    const loaded = info.slotFrames.filter(f => f > 0).length;
+    logSample(`Connected — ${loaded} sample${loaded === 1 ? "" : "s"} on card.`);
+  } else {
+    clearSampleSlots();
+    logSample("Connected — card has no SLOTS info (flash latest UF2 to see loaded samples).");
+  }
+}
+
+async function readSerialLoop() {
+  try {
+    while (serialPort) {
+      const { value, done } = await serialReader.read();
+      if (done) break;
+      if (value) {
+        const merged = new Uint8Array(serialBuf.length + value.length);
+        merged.set(serialBuf);
+        merged.set(value, serialBuf.length);
+        serialBuf = merged;
+      }
+    }
+  } catch (_) {}
+}
+
+function serialWriteStr(s) {
+  return serialWrite(new TextEncoder().encode(s));
+}
+
+async function serialWrite(data) {
+  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
+  await serialWriter.write(bytes);
+}
+
+async function waitForBytes(n, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    // Surface device error strings early instead of treating them as binary length/PCM.
+    if (serialBuf.length >= 8) {
+      const head = new TextDecoder().decode(serialBuf.slice(0, Math.min(serialBuf.length, 16)));
+      if (head.startsWith("TIMEOUT") || head.startsWith("ERR")) {
+        const line = head.split("\n")[0];
+        throw new Error(`Device: ${line}`);
+      }
+    }
+    if (serialBuf.length >= n) {
+      const out = serialBuf.slice(0, n);
+      serialBuf = serialBuf.slice(n);
+      return out;
+    }
+    await new Promise(r => setTimeout(r, 20));
+  }
+  throw new Error(`Serial timeout (have ${serialBuf.length}/${n} bytes)`);
+}
+
+async function pullSlotFromDevice(index) {
+  // 'S' + ASCII digit → u32 frames + PCM in 512-byte chunks (ACK each with 'A')
+  const SLOT_CHUNK = 512;
+  serialBuf = new Uint8Array(0);
+  await serialWriteStr("S" + String(index));
+  const lenBytes = await waitForBytes(4, 8000);
+  const frames = new DataView(lenBytes.buffer, lenBytes.byteOffset, lenBytes.byteLength).getUint32(0, true);
+  if (frames === 0) {
+    await waitForText("DONE\n", 5000);
+    return null;
+  }
+  if (frames > MAX_SAMPLE_FRAMES) throw new Error(`Slot ${index}: unexpected ${frames} frames`);
+  logSample(`Keeping ${sampleSlots[index].name} from card… 0/${frames}`);
+  const pcm = new Uint8Array(frames);
+  let got = 0;
+  while (got < frames) {
+    const need = Math.min(SLOT_CHUNK, frames - got);
+    const chunk = await waitForBytes(need, 10000);
+    pcm.set(chunk, got);
+    got += chunk.length;
+    if (got < frames) await serialWriteStr("A");
+    if (got === frames || (got & 0x3ff) === 0) {
+      logSample(`Keeping ${sampleSlots[index].name} from card… ${got}/${frames}`);
+    }
+  }
+  await waitForText("DONE\n", 5000);
+  return pcm;
+}
+
+async function waitForText(text, timeoutMs) {
+  const enc = new TextEncoder().encode(text);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const idx = findSeq(serialBuf, enc);
+    if (idx >= 0) {
+      serialBuf = serialBuf.slice(idx + enc.length);
+      return;
+    }
+    await new Promise(r => setTimeout(r, 20));
+  }
+  throw new Error("Expected: " + text);
+}
+
+function findSeq(hay, needle) {
+  for (let i = 0; i <= hay.length - needle.length; i++) {
+    let ok = true;
+    for (let j = 0; j < needle.length; j++) {
+      if (hay[i + j] !== needle[j]) { ok = false; break; }
+    }
+    if (ok) return i;
+  }
+  return -1;
+}
+
+async function serialInfo() {
+  serialBuf = new Uint8Array(0);
+  await serialWriteStr("I");
+  const lenBytes = await waitForBytes(4, 8000);
+  const len = new DataView(lenBytes.buffer, lenBytes.byteOffset, lenBytes.byteLength).getUint32(0, true);
+  const meta = await waitForBytes(len, 8000);
+  const raw = new TextDecoder().decode(meta);
+  const cap = parseInt(/C (\d+)/.exec(raw)?.[1] || "0", 10);
+  let slotFrames = null;
+  const slotsMatch = /SLOTS((?:\s+\d+){8})/.exec(raw);
+  if (slotsMatch) {
+    slotFrames = slotsMatch[1].trim().split(/\s+/).map(s => parseInt(s, 10) || 0);
+  }
+  return { raw, capacityBytes: cap, slotFrames };
+}
+
+async function pullMissingSlotsFromCard() {
+  const missing = [];
+  for (let i = 0; i < 8; i++) {
+    if (!sampleSlots[i].pcm && sampleSlots[i].cardFrames > 0) missing.push(i);
+  }
+  if (!missing.length) return;
+
+  for (let n = 0; n < missing.length; n++) {
+    const i = missing[n];
+    const slot = sampleSlots[i];
+    logSample(`Keeping ${slot.name} from card… (${n + 1}/${missing.length})`);
+    const pcm = await pullSlotFromDevice(i);
+    if (!pcm || pcm.length === 0) {
+      slot.cardFrames = 0;
+      updateSampleStatus(i);
+      continue;
+    }
+    slot.pcm = pcm;
+    slot.peak = peakOf(pcm);
+    slot.cardFrames = pcm.length;
+    updateSampleStatus(i);
+  }
+}
+
+async function uploadBank() {
+  // Merge: pull any on-card slots that aren't loaded in the page, then write
+  // the full bank (changed files + kept slots). Empty browser slots with no
+  // cardFrames stay empty.
+  serialBuf = new Uint8Array(0);
+  logSample("Syncing…");
+  await serialWriteStr("X");
+  await waitForText("SYNC\n", 5000);
+
+  await pullMissingSlotsFromCard();
+
+  logSample("Reading card capacity…");
+  const { capacityBytes } = await serialInfo();
+  const blob = buildBankBlob(capacityBytes);
+  const sampleCount = sampleSlots.filter(s => s.pcm).length;
+  logSample(`Uploading ${blob.length} bytes (${sampleCount} samples)…`);
+  await serialWriteStr("W");
+  const len = new Uint8Array(4);
+  new DataView(len.buffer).setUint32(0, blob.length, true);
+  await serialWrite(len);
+  await waitForText("OK\n", 10000);
+  const page = 256;
+  for (let i = 0; i < blob.length; i += page) {
+    await serialWrite(blob.slice(i, Math.min(i + page, blob.length)));
+    if (i === 0 || ((i / page) & 15) === 0) {
+      logSample(`Sending ${Math.min(i + page, blob.length)}/${blob.length} bytes…`);
+    }
+    if ((i & 0x0fff) === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  logSample("Writing flash…");
+  await waitForText("OK\n", 120000);
+  const verify = await serialInfo();
+  if (verify.slotFrames) applySlotFrameCounts(verify.slotFrames);
+  const used = parseInt(/U (\d+)/.exec(verify.raw)?.[1] || "0", 10);
+  if (used <= 0) {
+    logSample(`Upload finished but bank not active. Device says: ${verify.raw.trim()}`);
+  } else {
+    logSample(`Uploaded OK — ${used} audio bytes on card. Restart play to hear samples.`);
+  }
+}
+
+document.getElementById("serialConnectBtn").onclick = () => connectSerial().catch(e => logSample(String(e)));
+document.getElementById("uploadBtn").onclick = () => uploadBank().catch(e => logSample(String(e)));
+renderSampleRows();
+</script>
+</body>
+</html>

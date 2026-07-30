@@ -1,0 +1,77 @@
+draft: true
+Name: Drum&Sequence
+short-description: PO-style sample drum machine with dual melodic CV/gate sequencers and browser editor.
+Language: C++ (ComputerCard / Pico SDK)
+Creator: Dan Reid
+Version: "0.1.0"
+Status: WIP
+License: MIT
+date-created: 2026-07-30
+date-updated: 2026-07-30
+card-number: 45
+
+tags:
+  - sequencer
+  - percussion
+  - samples
+  - cv
+  - webmidi
+  - drums
+
+summary: |
+  Drum&Sequence is a 16-step drum machine with eight sample voices (flash storage),
+  plus two independent melodic sequencers outputting calibrated 1V/oct CV and gates.
+  A Pocket Operator-inspired browser editor configures patterns over WebMIDI SysEx.
+  Panel knobs and switch provide play, drum voice editing, and step sequencing without a laptop.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: External Clock
+      description: Rising edge advances one step; overrides internal tempo when patched
+    - id: PulseIn2
+      name: Reset
+      description: Rising edge resets all sequencers to step 1
+    - id: CVIn1
+      name: Seq A Transpose
+      description: Adds semitones to melodic sequencer A pitch output
+    - id: CVIn2
+      name: Seq B Transpose
+      description: Adds semitones to melodic sequencer B pitch output
+  outputs:
+    - id: AudioOut1
+      name: Drum Mix L
+      description: Mono drum mix from flash sample voices
+    - id: AudioOut2
+      name: Drum Mix R
+      description: Mono drum mix duplicate
+    - id: CVOut1
+      name: Sequencer A Pitch
+      description: Calibrated 1V/oct pitch from melodic sequencer A (holds between notes)
+    - id: PulseOut1
+      name: Sequencer A Gate
+      description: Gate high while sequencer A step has a note
+    - id: CVOut2
+      name: Sequencer B Pitch
+      description: Calibrated 1V/oct pitch from melodic sequencer B (holds between notes)
+    - id: PulseOut2
+      name: Sequencer B Gate
+      description: Gate high while sequencer B step has a note
+
+controls:
+  switch:
+    up:
+      name: Play
+      description: Main = tempo (BPM 40–240), X = pattern length (1–16), Y = swing
+    middle:
+      name: Drums
+      description: Main = voice select (1–8), X = pitch, Y = level
+    down:
+      name: Sequence Edit
+      description: Main = seq A/B select, X = step note, Y = step gate; long press = play/pause
+
+host:
+  usb:
+    - name: Browser Editor
+      role: usb-midi-device
+      description: WebMIDI SysEx editor in web/index.html — device name DrumAndSequence; patterns, BPM, swing, Save to flash (Chrome, USB-C data cable)
