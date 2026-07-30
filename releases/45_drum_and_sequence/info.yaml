@@ -64,11 +64,11 @@ controls:
       name: Play
       description: Main = tempo (BPM 40–240), X = pattern length (1–16), Y = swing
     middle:
-      name: Drums
-      description: Main = voice select (1–8), X = pitch, Y = level
+      name: Edit
+      description: Main selects target (voices 1–8, Seq A, Seq B); X/Y = pitch/level for drums or note/gate for sequencers
     down:
-      name: Sequence Edit
-      description: Main = seq A/B select, X = step note, Y = step gate; long press = play/pause
+      name: Momentary gestures
+      description: Short press = advance edit step; long press (≥500ms) = play/pause. Springs back to Middle — no knob editing while Down.
 
 host:
   usb:

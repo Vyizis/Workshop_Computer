@@ -25,9 +25,10 @@
  * CV In 2        — Transpose sequencer B
  *
  * Switch UP      — play: Main=tempo (BPM), X=bar length, Y=swing
- * Switch MIDDLE  — drums: Main=voice, X=pitch, Y=level
- * Switch DOWN    — seq edit: Main=A/B, X=note, Y=gate
- *                  short press advances edit cursor; long press play/pause
+ * Switch MIDDLE  — edit: Main=target (voices 1–8, Seq A, Seq B);
+ *                  X/Y = pitch/level (drums) or note/gate (seqs)
+ * Switch DOWN    — momentary only (springs to Middle):
+ *                  short press = advance edit step; long press = play/pause
  */
 
 #include "ComputerCard.h"
@@ -203,11 +204,17 @@ class DrumAndSequence : public ComputerCard
         LedOn(5, gateB);
 
         if (sw == Switch::Middle) {
-            LedBrightness(1, gState.selectedDrum * 512);
+            // LED1 brightness hints edit target: drums 0–7, brighter for Seq A/B.
+            int32_t bright = (gState.editTarget == 0)
+                ? (gState.selectedDrum * 512)
+                : (gState.editTarget == 1 ? 3072 : 4095);
+            LedBrightness(1, bright);
         }
     }
 
-    // Switch Down: long-press toggles transport; short-press advances edit step.
+    // Switch Down is momentary on the Workshop Computer ((ON)-OFF-ON):
+    // it springs back to Middle. Only short/long press gestures live here —
+    // sustained knob editing belongs in Up / Middle.
     void handle_switch_down(void)
     {
         Switch sw = SwitchVal();
@@ -230,7 +237,7 @@ class DrumAndSequence : public ComputerCard
         }
     }
 
-    // Continuous knob mapping for the three switch modes (see file header).
+    // Continuous knob mapping for latched modes (Up / Middle).
     void handle_knobs(Switch sw)
     {
         if (sw == Switch::Up) {
@@ -245,30 +252,36 @@ class DrumAndSequence : public ComputerCard
             int32_t yRaw = KnobVal(Knob::Y);
             gState.swing = (uint8_t)((yRaw * 127) >> 12);
         } else if (sw == Switch::Middle) {
+            // Main picks edit target: 0–7 drum voices, 8 = Seq A, 9 = Seq B.
             int32_t mainRaw = KnobVal(Knob::Main);
-            gState.selectedDrum = (uint8_t)((mainRaw * 7) >> 12);
-            int32_t pitch = KnobVal(Knob::X);
-            gState.drumPitch[gState.selectedDrum] = (uint8_t)((pitch * 127) >> 12);
-            int32_t level = KnobVal(Knob::Y);
-            gState.drumLevel[gState.selectedDrum] = (uint8_t)((level * 127) >> 12);
-        } else if (sw == Switch::Down) {
-            int32_t mainRaw = KnobVal(Knob::Main);
-            gState.editTarget = (mainRaw > 2048) ? 2 : 1;
+            int32_t sel = (mainRaw * 9) >> 12; // 0..9
+            if (sel > 9) sel = 9;
 
-            uint8_t es = gState.editStep;
-            int32_t noteKnob = KnobVal(Knob::X);
-            int32_t gateKnob = KnobVal(Knob::Y);
-            uint8_t note = (uint8_t)((noteKnob * 127) >> 12);
-            uint8_t on = gateKnob > 2048 ? 1 : 0;
-
-            if (gState.editTarget == 1) {
-                gState.seqA_note[es] = note;
-                gState.seqA_on[es] = on;
+            if (sel < DS_DRUM_TRACKS) {
+                gState.selectedDrum = (uint8_t)sel;
+                gState.editTarget = 0;
+                int32_t pitch = KnobVal(Knob::X);
+                gState.drumPitch[gState.selectedDrum] = (uint8_t)((pitch * 127) >> 12);
+                int32_t level = KnobVal(Knob::Y);
+                gState.drumLevel[gState.selectedDrum] = (uint8_t)((level * 127) >> 12);
             } else {
-                gState.seqB_note[es] = note;
-                gState.seqB_on[es] = on;
+                gState.editTarget = (sel == 8) ? 1 : 2;
+                uint8_t es = gState.editStep;
+                int32_t noteKnob = KnobVal(Knob::X);
+                int32_t gateKnob = KnobVal(Knob::Y);
+                uint8_t note = (uint8_t)((noteKnob * 127) >> 12);
+                uint8_t on = gateKnob > 2048 ? 1 : 0;
+
+                if (gState.editTarget == 1) {
+                    gState.seqA_note[es] = note;
+                    gState.seqA_on[es] = on;
+                } else {
+                    gState.seqB_note[es] = note;
+                    gState.seqB_on[es] = on;
+                }
             }
         }
+        // Switch::Down — no knob mapping (momentary gestures only).
     }
 
 public:

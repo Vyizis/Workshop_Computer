@@ -34,14 +34,18 @@ Short one-shot samples work best. Audio is converted to 48 kHz mono 8-bit on upl
 
 ## Panel controls
 
+The Z switch is **(ON)–OFF–ON**: **Up** and **Middle** latch; **Down** is momentary and springs back to Middle (same as drumdrum).
+
 | Switch | Main | X | Y |
 |--------|------|---|---|
 | **Up** (play) | Tempo (BPM) | Pattern length (1–16) | Swing |
-| **Middle** (drums) | Voice 1–8 | Pitch | Level |
-| **Down** (seq) | Seq A / B | Step note | Step gate |
+| **Middle** (edit) | Target: voices 1–8, then Seq A, Seq B | Pitch / note | Level / gate |
+| **Down** (momentary) | — | — | — |
 
-- **Short press Down** — advance edit step  
+- **Short press Down** — advance edit step (used when Middle is on Seq A/B)  
 - **Long press Down** (≥500ms) — play / pause  
+
+In Middle, turn Main through ten zones: eight drum voices (X/Y = pitch/level), then Seq A and Seq B (X/Y = note/gate for the current edit step).
 
 ## I/O
 
