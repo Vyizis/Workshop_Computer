@@ -552,12 +552,14 @@ export function buildCanonicalCardModel({
     warnings,
     'date-created',
   );
+  let createdInferred = false;
   if (!created) {
     // Earliest genesis signal: the folder's first commit and Phil's oldest
     // blame date are both "early" markers (and use different date sources), so
     // take whichever is earlier. This also keeps `created` <= derived `updated`.
     const early = [gitFirstDate, blameDate].filter(Boolean).sort();
     created = early[0] || '';
+    createdInferred = Boolean(created);
   }
   if (!created) created = 'n/a';
   let updated = normalizedDate(field(info, 'date-updated', 'updated', 'updated_at'), warnings, 'date-updated');
@@ -615,6 +617,7 @@ export function buildCanonicalCardModel({
     discussion_url: optionalText(field(info, 'discussion'), warnings, 'discussion'),
     contact: sanitizeValue(field(info, 'contact')),
   };
+  if (createdInferred) metadata.created_inferred = true;
   if (editor) {
     metadata.editor_url = editor;
     metadata.editor_note = 'Configure this card in your browser';

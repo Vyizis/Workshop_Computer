@@ -44,6 +44,7 @@ test('created derives from the earliest git signal; updated from content date', 
     gitLastDate: '2025-05-01',
   });
   assert.equal(card.metadata.created, '2024-01-15');
+  assert.equal(card.metadata.created_inferred, true);
   assert.equal(card.metadata.updated, '2025-03-01');
 });
 
@@ -62,6 +63,7 @@ test('authored creation and update dates remain independent', () => {
     contentDate: '2026-01-01',
   });
   assert.equal(card.metadata.created, '2024-02-03');
+  assert.equal(card.metadata.created_inferred, undefined);
   assert.equal(card.metadata.updated, '2025-06-07');
 });
 

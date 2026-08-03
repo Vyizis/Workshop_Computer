@@ -8,6 +8,7 @@
 
 import { panelPositions } from './panelPositions.js';
 import { renderMarkdownBlock, renderMarkdownInline, sanitizeAuthoredHtml } from '../utils/markdown.js';
+import { externalLinkArrow } from './icons.js';
 
 const DEFAULT_DISCUSSION = 'https://discord.com/channels/1210238368898879569/1484219323039092938';
 
@@ -102,7 +103,9 @@ function renderPanelSwitchPositions(switchModes = {}, positionControl = null) {
   const selected = positionControl?.activeId || 'middle';
   const selectable = new Set((positionControl?.items || []).map(item => item.id));
   const positions = ['up', 'middle', 'down'].map(position => {
-    const role = switchModeName(switchModes[position]);
+    const hasDownPosition = selectable.has('down') || Boolean(switchModes.down);
+    const mode = position === 'down' && !hasDownPosition ? switchModes.tap : switchModes[position];
+    const role = switchModeName(mode);
     const selectAttrs = selectable.has(position)
       ? ` data-panel-position-button="${position}" aria-pressed="${position === selected}" title="Select ${position} switch position"`
       : ` aria-pressed="false" title="${role ? 'Edit' : 'Add'} ${position} switch position"`;
@@ -137,7 +140,10 @@ function renderSwitchSection(snapshot, positionControl = null) {
       </div>`;
     }).join('');
     const tap = switchModes.tap
-      ? `<div class="program-card-switch-position program-card-switch-action"><strong>Tap</strong><p>${esc(truncate(switchModes.tap, 240))}</p></div>`
+      ? `<div class="program-card-switch-position program-card-switch-position--tap">
+        <button type="button" class="program-card-position-button" disabled>Tap</button>
+        <p>${esc(truncate(switchModes.tap, 240))}</p>
+      </div>`
       : '';
     if (!rows && !tap) return '';
     return `<div class="program-card-control program-card-control--switch">
@@ -146,16 +152,18 @@ function renderSwitchSection(snapshot, positionControl = null) {
     </div>`;
   }
 
-  const entries = Object.entries(switchModes).filter(entry => entry[1]);
-  if (!entries.length) return '';
+  const entries = Object.entries(switchModes).filter(([key, value]) => key !== 'tap' && value);
+  const tap = switchModes.tap
+    ? `<p class="program-card-switch-action"><strong>Tap</strong> ${esc(truncate(switchModes.tap, 240))}</p>`
+    : '';
+  if (!entries.length && !tap) return '';
   const markup = entries.map(([key, value]) => {
-    const label = key === 'tap' ? 'Tap (Down)' : key.charAt(0).toUpperCase() + key.slice(1);
-    const className = key === 'tap' ? ' class="program-card-switch-action"' : '';
-    return `<p${className}><strong>${esc(label)}</strong> ${esc(truncate(value, 240))}</p>`;
+    const label = key.charAt(0).toUpperCase() + key.slice(1);
+    return `<p><strong>${esc(label)}</strong> ${esc(truncate(value, 240))}</p>`;
   }).join('');
   return `<div class="program-card-control program-card-control--switch">
     <strong class="program-card-component-key">Switch</strong>
-    <div class="program-card-switch-positions">${markup}</div>
+    <div class="program-card-switch-positions">${markup}</div>${tap}
   </div>`;
 }
 
@@ -249,13 +257,15 @@ function renderSocketList(title, sockets, positions) {
   if (!sockets) return '';
   const items = (positions || []).map(pos => {
     const socket = sockets[pos.key];
-    if (!socket || (!socket.description && !socket.label)) return '';
+    if (!socket || (!socket.description && !socket.label)) {
+      return '<div class="program-card-socket program-card-socket--empty" aria-hidden="true"><span>Unused</span></div>';
+    }
     return `<div class="program-card-socket">
       <strong class="program-card-component-key">${esc(pos.name || pos.key)}</strong>
       ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, 220)) : ''}</p>` : ''}
     </div>`;
   }).join('');
-  if (!items.trim()) return '';
+  if (!Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
   return `<section class="program-card-socket-section program-card-socket-section--${esc(title.toLowerCase())}"><h4 class="program-card-socket-section__heading">${esc(title)}</h4><div class="program-card-socket-list">${items}</div></section>`;
 }
 
@@ -344,7 +354,7 @@ function renderAudio(samples) {
       const height = s.height || (s.kind === 'soundcloud' ? 166 : 120);
       return `<div class="program-card-audio__item">${title}<iframe class="program-card-audio__embed program-card-audio__embed--${esc(s.kind)}" src="${esc(s.embedUrl)}" width="100%" height="${height}" loading="lazy" frameborder="0" allow="autoplay" title="${esc(s.title || (s.kind + ' player'))}"></iframe></div>`;
     }
-    return `<div class="program-card-audio__item">${title}<a class="program-card-audio__link" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.host || s.url)} ↗</a></div>`;
+    return `<div class="program-card-audio__item">${title}<a class="program-card-audio__link" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.host || s.url)}${externalLinkArrow()}</a></div>`;
   }).join('');
   return `<section class="program-card-audio"><h2>Audio samples</h2>${items}</section>`;
 }
@@ -451,7 +461,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
       ${metadata.version ? `<div><dt>Version</dt><dd>${esc(metadata.version)}</dd></div>` : ''}
       ${metadata.status ? `<div><dt>Status</dt><dd>${esc(metadata.status)}</dd></div>` : ''}
       ${metadata.license ? `<div><dt>License</dt><dd>${esc(metadata.license)}</dd></div>` : ''}
-      ${metadata.created && metadata.created !== 'n/a' ? `<div><dt>Created</dt><dd>${esc(metadata.created)}</dd></div>` : ''}
+      ${!metadata.created_inferred && metadata.created && metadata.created !== 'n/a' ? `<div><dt>Created</dt><dd>${esc(metadata.created)}</dd></div>` : ''}
       ${metadata.updated && metadata.updated !== 'n/a' ? `<div><dt>Updated</dt><dd>${esc(metadata.updated)}</dd></div>` : ''}
       ${card.memory && card.memory.size ? `<div><dt>Card memory</dt><dd>${esc(String(card.memory.size).toUpperCase())} ${esc(card.memory.requirement || 'supported')}</dd></div>` : ''}
       ${readmeUrl ? `<div><dt>Read more</dt><dd><a href="${esc(readmeUrl)}">README in the Workshop Computer repo</a></dd></div>` : ''}

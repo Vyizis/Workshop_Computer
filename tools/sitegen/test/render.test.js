@@ -21,7 +21,7 @@ test('card renderer exposes accessible generated panel tabs and default state', 
     panel_views: {
       source: 'generated', default: 'middle', items: [
         { id: 'up', name: 'Up', panel: { controls: { main: { label: 'Upper\nmode' } } }, switch_modes: {}, leds: [] },
-        { id: 'middle', name: 'Middle', panel: { controls: { main: { label: 'Normal' } } }, switch_modes: {}, leds: [] },
+        { id: 'middle', name: 'Middle', panel: { controls: { main: { label: 'Normal' } } }, switch_modes: { tap: 'Set tempo' }, leds: [] },
       ],
     },
   });
@@ -31,8 +31,39 @@ test('card renderer exposes accessible generated panel tabs and default state', 
   assert.match(html, /data-panel-position-view="up" hidden aria-hidden="true"/);
   assert.match(html, /data-panel-position-view="middle"/);
   assert.match(html, /Upper<br>mode/);
+  assert.match(html, /program-card-switch-position--tap">\s*<button type="button" class="program-card-position-button" disabled>Tap<\/button>\s*<p>Set tempo<\/p>/);
+  assert.doesNotMatch(html, /data-panel-position-button="tap"/);
   assert.match(html, /Test &amp; &quot;Card&quot;/);
   assert.match(html, /By A &amp; B/);
+});
+
+test('generated socket descriptions preserve unused physical jack positions', () => {
+  const generated = card({
+    panel_views: {
+      source: 'generated', default: 'middle', items: [{
+        id: 'middle', name: 'Middle', switch_modes: {}, leds: [],
+        panel: { inputs: {
+          audio_l: { label: 'Audio input' },
+          cv_1: { label: 'Speed CV' },
+        } },
+      }],
+    },
+  });
+  const html = renderCardArticle({ card: generated, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  assert.match(html, /Audio 1[\s\S]*program-card-socket--empty" aria-hidden="true"><span>Unused<\/span>[\s\S]*CV 1/);
+});
+
+test('tap labels the panel down position only when no down mode is provided', () => {
+  const tapOnly = renderPanelArtwork({ panel: {}, switch_modes: { tap: 'Tap Tempo: Set the clock' } }, 'panel.svg');
+  assert.match(tapOnly, /program-card-panel-switch-position--down[^>]*aria-label="down switch position: Tap Tempo"[^>]*>[\s\S]*<strong>Tap Tempo<\/strong>/);
+  assert.doesNotMatch(tapOnly, /data-panel-position-button="tap"/);
+
+  const withDown = renderPanelArtwork({
+    panel: {},
+    switch_modes: { down: 'Reset: Hold to clear', tap: 'Tap Tempo: Set the clock' },
+  }, 'panel.svg');
+  assert.match(withDown, /program-card-panel-switch-position--down[^>]*aria-label="down switch position: Reset"[^>]*>[\s\S]*<strong>Reset<\/strong>/);
+  assert.doesNotMatch(withDown, /aria-label="down switch position: Tap Tempo"/);
 });
 
 test('custom panel rendering sanitizes authored content and escapes image metadata', () => {
@@ -111,6 +142,16 @@ test('card details render configured creation and update dates', () => {
   assert.match(html, /<dt>Updated<\/dt><dd>2025-06-07<\/dd>/);
 });
 
+test('card details hide inferred creation dates', () => {
+  const html = renderCardArticle({
+    card: card({ metadata: { created: '2024-02-03', created_inferred: true, updated: '2025-06-07' } }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.doesNotMatch(html, /<dt>Created<\/dt>/);
+  assert.doesNotMatch(html, /2024-02-03/);
+  assert.match(html, /<dt>Updated<\/dt><dd>2025-06-07<\/dd>/);
+});
+
 test('discovery renderers escape searchable attributes and ignore absent shelf cards', () => {
   const testCard = card({
     title: 'A "quoted" <card>', slug: 'safe-slug',
@@ -126,6 +167,14 @@ test('discovery renderers escape searchable attributes and ignore absent shelf c
   const shelf = renderShelf({ title: 'Shelf <One>', cards: ['missing', testCard.id] }, new Map([[testCard.id, testCard]]));
   assert.match(shelf, /Shelf &lt;One&gt;/);
   assert.equal((shelf.match(/program-card-tile__link/g) || []).length, 1);
+});
+
+test('catalogue sorting uses inferred creation dates', () => {
+  const inferred = card({
+    metadata: { created: '2026-07-29', created_inferred: true },
+  });
+  assert.match(renderTile(inferred), /data-date="2026-07-29"/);
+  assert.match(renderArchive([inferred]), /data-date="2026-07-29"/);
 });
 
 test('featured blank card overlays its label artwork on the randomized card icon', () => {
@@ -185,8 +234,8 @@ test('advanced author editor includes highlighting, diagnostics, and YAML format
 
 test('basic author fields link to new-tab examples of their published usage', () => {
   const preview = renderAuthorPage();
-  assert.match(preview, /Short description[\s\S]*class="author-field-guidance">\(used in card search and the all cards index; <a href="\.\.\/archive\/" target="_blank" rel="noopener noreferrer">see example ↗<\/a>/);
-  assert.match(preview, /Summary[\s\S]*used beneath the title on card pages; <a href="\.\.\/programs\/15-mlrws\/" target="_blank" rel="noopener noreferrer">see example ↗<\/a>/);
+  assert.match(preview, /Short description[\s\S]*class="author-field-guidance">\(used in card search and the all cards index; <a href="\.\.\/archive\/" target="_blank" rel="noopener noreferrer">see example<svg class="external-link-arrow"[\s\S]*?<\/svg><\/a>/);
+  assert.match(preview, /Summary[\s\S]*used beneath the title on card pages; <a href="\.\.\/programs\/15-mlrws\/" target="_blank" rel="noopener noreferrer">see example<svg class="external-link-arrow"[\s\S]*?<\/svg><\/a>/);
 });
 
 test('basic author mode exposes live-preview web editor metadata', () => {

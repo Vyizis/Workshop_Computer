@@ -589,6 +589,12 @@ a.program-card-tag:visited {
   border-color: var(--program-card-ink);
 }
 
+.program-card-position-button:disabled {
+  border-color: #aaa;
+  cursor: default;
+  opacity: 1;
+}
+
 .program-card-position-button:focus-visible {
   outline: 3px solid var(--program-card-rule);
   outline-offset: 2px;
@@ -653,11 +659,6 @@ a.program-card-tag:visited {
   border: 2px solid var(--program-card-ink);
   padding: 16px;
   font-weight: var(--weight-bold);
-}
-
-.program-card-switch-action {
-  border-left: 3px solid var(--program-card-rule);
-  padding-left: 10px;
 }
 
 .program-card-use__title {
@@ -1143,6 +1144,15 @@ a.program-card-tag:visited {
   overflow: hidden;
 }
 
+.program-card-socket--empty {
+  color: var(--program-card-muted);
+  font-size: 0.82rem;
+  font-family: inherit;
+  font-style: normal;
+  grid-template-rows: 1fr;
+  place-items: center;
+}
+
 .program-card-socket .program-card-component-key {
   background: var(--program-card-soft);
   border-bottom: 1px solid var(--program-card-rule);
@@ -1442,6 +1452,10 @@ a.program-card-tag:visited {
 
   .program-card-socket-list {
     grid-template-columns: 1fr;
+  }
+
+  .program-card-socket--empty {
+    display: none;
   }
 
   .program-card-io-columns {
